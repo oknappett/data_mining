@@ -1,1 +1,2 @@
 this is an example for git
+this is another example for windows puish
