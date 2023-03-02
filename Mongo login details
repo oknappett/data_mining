@@ -1,0 +1,10 @@
+ssh olk11@central.aber.ac.uk
+ssh shellsrv.dcs.aber.ac.uk
+
+mongo -u olk11 -p 7LwEV4mUxIqd --host nosql.dcs.aber.ac.uk olk11
+
+to copy a file across: 
+	scp <file> olk11@shellsrv.dcs.aber.ac.uk:/aber/olk11/data_mining/<practical folder>
+
+mongo client in pymongo: 
+	'mongodb://olk11:7LwEV4mUxIqd@nosql.dcs.aber.ac.uk/olk11'
