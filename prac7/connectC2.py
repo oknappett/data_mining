@@ -1,8 +1,8 @@
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 
-USERNAME = 'XXXXX'
-PASSWORD = 'XXXXXXXXX'
+USERNAME = 'olk11'
+PASSWORD = '7LwEV4mUxIqd'
 
 #define the authentication details
 auth_provider = PlainTextAuthProvider(
@@ -22,9 +22,11 @@ session=cluster.connect()
 #Set the session to use your keyspace
 session.set_keyspace(USERNAME)
 
+query = '{"emp_id" : "5","emp_address" : "anystreet","emp_city" : "aber","emp_name" : "object3","emp_phone" : "101"}'
+
 #define a function to print out the results of a query.
 def show_query():
-    rows = session.execute ('SELECT * FROM emp')
+    rows = session.execute (f"INSERT INTO emp JSON '{query}';")
     for row in rows:
         print(row.emp_id, row.emp_city, row.emp_name, row.emp_phone)
 

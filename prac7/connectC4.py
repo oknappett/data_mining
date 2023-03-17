@@ -1,8 +1,8 @@
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 
-USERNAME = 'XXXXXXX'
-PASSWORD = 'XXXXXXXXXX'
+USERNAME = 'olk11'
+PASSWORD = '7LwEV4mUxIqd'
 
 #define the authentication details
 auth_provider = PlainTextAuthProvider(
