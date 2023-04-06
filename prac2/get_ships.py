@@ -50,7 +50,7 @@ def get_ships( excel_ship_file ):
 
     except:
         # deal with the error if the file cannot be opened
-        print("File can't be opened: %s \n\n" % (excel_ship_file))
+        print("\nFile can't be opened: %s \n" % (excel_ship_file))
 
     return ships
    
