@@ -6,7 +6,7 @@ import pymongo
 user = 'olk11'
 dbpath = 'nosql.dcs.aber.ac.uk/olk11'
 password = "7LwEV4mUxIqd"
-connection_string = 'mongodb://'+user+':'+password+'@'+dbpath
+connection_string = 'mongodb://olk11:7LwEV4mUxIqd@nosql.dcs.aber.ac.uk/olk11'
 
 client = pymongo.MongoClient(connection_string)
 
@@ -19,7 +19,7 @@ import get_ships
 
 all_ships = []
 
-ships_dir = '/aber/olk11/data_mining/prac2/ship_data/ABERSHIP_transcription_vtls004566921'
+ships_dir = 'prac2\ship_data'
 
 for root, dirs, files in os.walk(ships_dir):
     for file in files:
@@ -27,5 +27,5 @@ for root, dirs, files in os.walk(ships_dir):
         if ext == '.xlsx':
             all_ships += get_ships.get_ships( os.path.join(root, file) )
 
-result = db.olk11.insert_many(all_ships)
+result = db.olk11Ships.insert_many(all_ships)
 print(result)
