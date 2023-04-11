@@ -5,13 +5,15 @@ import matplotlib.pyplot as plt
 #Mongodb user details for olk11
 mongoUser = 'olk11'
 mongoPass = '7LwEV4mUxIqd'
-client = MongoClient(f'mongodb://{mongoUser}:{mongoPass}@nosql.dcs.aber.ac.uk/olk11')
+client = MongoClient(f'mongodb://{mongoUser}:{mongoPass}@nosql.dcs.aber.ac.uk/{mongoUser}')
 db = client.olk11
 
 def count_record():
     #the shipping record data is imported into a collection called olk11ShipsData
     cursor = db.olk11ShipsData.find()
-    count = len(cursor)
+    count = 0
+    for record in cursor:
+        count+=1
 
     print("Number of shipping records: ", count)
 
@@ -35,5 +37,15 @@ def vessel_barchart():
     plt.xticks(rotation=45)
     plt.show()
 
+def test():
+    client = MongoClient('mongodb://olk11:7LwEV4mUxIqd@nosql.dcs.aber.ac.uk/olk11')
+
+    db = client.olk11
+
+    cursor = db.olk11ShipsData.aggregate([{"$match": {"vessel name": "Loyalty"}}])
+
+    for doc in cursor:
+        pprint.pptint(doc)
+
 if __name__ =='__main__':
-    vessel_barchart()
+    test()

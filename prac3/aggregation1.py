@@ -7,7 +7,7 @@ client = MongoClient('mongodb://olk11:7LwEV4mUxIqd@nosql.dcs.aber.ac.uk/olk11')
 
 db = client.olk11
 
-cursor = db.olk11.aggregate([{"$match": {
+cursor = db.olk11ShipsData.aggregate([{"$match": {
     "vessel name": "Loyalty"
 }}, {"$project": {
     "vessel name": 1,
