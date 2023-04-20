@@ -1,0 +1,36 @@
+db.collection.aggregate([
+  {
+    $project: {
+      ship: "$vessel_name",
+      mariners: 1
+    }
+  },
+  {
+    $unwind: "$mariners"
+  },
+  {
+    $project: {
+      name: "$mariners.name",
+      age: "$mariners.age",
+      PoB: "$mariners.place_of_birth",
+      DoB: "$mariner.year_of_birth"
+    }
+  },
+  {
+    $group: {
+      _id: {
+        birthPlace: "$PoB",
+        name: "$name",
+        DoB: "$DoB",
+        age: "$age"
+      }
+    }
+  },
+  {
+    $project: {
+      _id: "$_id.name",
+      age: "$_id.age",
+      DoB: "$_id.DoB"
+    }
+  }
+])
