@@ -120,6 +120,50 @@ class Mariner:
         """
         return f"Name:{self.name} Age:{self.age} Rank:{self.rank} Born:{self.PlaceofBirth}"
 
+def group_by_rank():
+    """
+    Mongodb aggregation to group mariners by rank
+
+    Returns:
+        Mongodb cursor: list of mariners grouped by rank. 
+                            Data projected: rank, age, born, leave date, name and place of birth
+    """
+    mariners = db.olk11ShipsData.aggregate([
+        # unwind mariners into an array
+        {
+            "$unwind": "$mariners"
+        },
+        # select all mariners that aren't named John Williams and Edward Jones
+        # as these are the example mariners and not always removed
+        {
+            "$match": {
+                "mariners.name": {
+                    "$nin": [
+                        "John Williams",
+                        "Edward Jones"
+                    ]
+                }
+            }
+        },
+        # group mariners by rank and show name, birth year, place of birth and leave date
+        # to allow the code to differentiate between different mariners
+        {
+            "$group": {
+                "_id": "$mariners.this_ship_capacity",
+                "sailors": {
+                    "$push": {
+                        "age": "$mariners.age",
+                        "born": "$mariners.year_of_birth",
+                        "leave_date": "$mariners.this_ship_leaving_date",
+                        "name": "$mariners.name",
+                        "place_of_birth": "$mariners.place_of_birth"
+                    }
+                }
+            }
+        }
+    ])
+
+    return mariners
 
 def clean_rank(rank):
     '''
@@ -203,7 +247,6 @@ def clean_rank(rank):
 
     return cleaned
 
-
 def calculate_time(startYear, endYear):
     '''
     Calculate age from birth year and leave year.
@@ -250,53 +293,6 @@ def calculate_time(startYear, endYear):
             # remove all ages that aren't possible
             if calculated_age > 0 and calculated_age < 150:
                 return calculated_age
-
-
-def group_by_rank():
-    """
-    Mongodb aggregation to group mariners by rank
-
-    Returns:
-        Mongodb cursor: list of mariners grouped by rank. 
-                            Data projected: rank, age, born, leave date, name and place of birth
-    """
-    mariners = db.olk11ShipsData.aggregate([
-        # unwind mariners into an array
-        {
-            "$unwind": "$mariners"
-        },
-        # select all mariners that aren't named John Williams and Edward Jones
-        # as these are the example mariners and not always removed
-        {
-            "$match": {
-                "mariners.name": {
-                    "$nin": [
-                        "John Williams",
-                        "Edward Jones"
-                    ]
-                }
-            }
-        },
-        # group mariners by rank and show name, birth year, place of birth and leave date
-        # to allow the code to differentiate between different mariners
-        {
-            "$group": {
-                "_id": "$mariners.this_ship_capacity",
-                "sailors": {
-                    "$push": {
-                        "age": "$mariners.age",
-                        "born": "$mariners.year_of_birth",
-                        "leave_date": "$mariners.this_ship_leaving_date",
-                        "name": "$mariners.name",
-                        "place_of_birth": "$mariners.place_of_birth"
-                    }
-                }
-            }
-        }
-    ])
-
-    return mariners
-
 
 def age_at_ranks(mariners):
     '''
@@ -385,13 +381,19 @@ def age_at_ranks(mariners):
                     m.setName(mariner['name'])
                     m.setPlaceofBirth(mariner['place_of_birth'])
 
-                    # if age of rank less than 10, print mariner
-                    # done as in a plot, one sailor with master rank is apparently 7 years old
-                    if (type(m.age) == int and m.age < 10):
-                        print(mariner)
+                    # print outlying, young captain as seen in box plots
+                    if (type(m.age) == int and m.age < 30 and cleaned=='captain'):
                         print(m.toString())
-                    else:
-                        rank_ages.append(m)
+
+                    # print oldest mariner
+                    if (type(m.age) == int and m.age > 80):
+                        print(m.toString())
+                    
+                    # print youngest mariners
+                    if (type(m.age) == int and m.age < 10):
+                        print(m.toString())
+
+                    rank_ages.append(m)
 
                 except KeyError:
                     pass
@@ -413,6 +415,35 @@ def age_at_ranks(mariners):
 
     return ranks
 
+
+def hist_ranks(data):
+    """
+    Plots a histogram of the frequency of mariners in each rank.
+
+    Parameters:
+        data (dict): A dictionary with ranks as keys and corresponding list of ages for mariners.
+
+    Returns:
+        None
+
+    Examples:
+        data = {'Master': [28], 'Seaman': [22]}
+        hist_ranks(data) Plots histogram of frequency of mariners in each rank
+    """
+    # empty dictionary to store frequency at each rank
+    rank_freq = {}
+
+    # add frequencies for each rank
+    for rank in data:
+        rank_freq[rank] = len(data[rank])
+
+    # bar chart the frequencies
+    plt.bar(range(len(rank_freq)), list(rank_freq.values()))
+    plt.xticks(range(len(rank_freq)), list(rank_freq.keys()), rotation=90)
+    plt.xlabel("Ranks")
+    plt.title("Frequency")
+    plt.savefig("plots/Results/Frequency_ranks.png", bbox_inches = 'tight')
+    plt.show()
 
 def boxplot_age_ranks(data):
     """
@@ -446,35 +477,7 @@ def boxplot_age_ranks(data):
     plt.ylabel("Age")
     plt.xlabel("Rank")
     plt.title("Distribution of ages at each rank")
-    plt.show()
-
-
-def hist_ranks(data):
-    """
-    Plots a histogram of the frequency of mariners in each rank.
-
-    Parameters:
-        data (dict): A dictionary with ranks as keys and corresponding list of ages for mariners.
-
-    Returns:
-        None
-
-    Examples:
-        data = {'Master': [28], 'Seaman': [22]}
-        hist_ranks(data) Plots histogram of frequency of mariners in each rank
-    """
-    # empty dictionary to store frequency at each rank
-    rank_freq = {}
-
-    # add frequencies for each rank
-    for rank in data:
-        rank_freq[rank] = len(data[rank])
-
-    # bar chart the frequencies
-    plt.bar(range(len(rank_freq)), list(rank_freq.values()))
-    plt.xticks(range(len(rank_freq)), list(rank_freq.keys()), rotation=90)
-    plt.xlabel("Ranks")
-    plt.title("Frequency")
+    plt.savefig("plots/Results/dist_ages_ranks.png", bbox_inches = 'tight')
     plt.show()
 
 
@@ -493,7 +496,6 @@ def distribution_of_ages():
     hist_ranks(rank_ages)
 
 #### PART 2 ####
-
 
 def ships_and_ports():
     """
@@ -625,67 +627,6 @@ def clean_port(port):
 
     return cleaned
 
-
-def plot_ports(ports):
-    """
-    Plots the number of visits to different ports.
-
-    Args:
-    - ports: A list of dictionaries, each dictionary contains information about a ship's visit to ports.
-
-    Example:
-        ports = [
-            {"_id": {"ship": "ship1", "port": "aberystwith"}},
-            {"_id": {"ship": "ship2", "port": "barry"}},
-            {"_id": {"ship": "ship3", "port": "newport"}},
-            {"_id": {"ship": "ship4", "port": "newport"}},
-            {"_id": {"ship": "ship5", "port": "newport"}}
-        ]
-        plot_ports(ports) plots a boxplot and bar chart of port visits
-    """
-    # create a dictionary to count the number of visits to each port
-    port_count = {}
-    for data in ports:
-        ship = data["_id"]
-        if "port" in ship:
-            extracted_port = ship["port"]
-            port = clean_port(extracted_port)
-            if port in port_count:
-                port_count[port] += 1
-            else:
-                port_count[port] = 1
-
-    # list of visit counts
-    counts = port_count.values()
-
-    # boxplot number of visits to each port
-    # line at 25 to show where the amount of visits stops being so grouped together
-    # this is the metric decided to plot ports
-    # it was originally decided to be all outlying ports but it still groups a bit
-    plt.axhline(y=25, color='r', linestyle=':')
-    plt.boxplot(counts, labels=[""])
-    plt.ylabel("Number of visits")
-
-    plt.title("Box plot of amount of port visits\nto decide which ones to plot")
-    plt.show()
-
-    # create dict of ports with more than 25 visits
-    plot_port = {}
-    for p in port_count:
-        if port_count[p] > 25:
-            plot_port[p] = port_count[p]
-
-    plot_port.pop("continued")
-
-    # plot the ports
-    plt.bar(range(len(plot_port)), list(plot_port.values()))
-    plt.xticks(range(len(plot_port)), list(plot_port.keys()), rotation=90)
-    plt.xlabel("Ports")
-    plt.ylabel("Number of visits")
-    plt.title("Number of visits for ports")
-    plt.show()
-
-
 def remove_outliers(data):
     """
     This function takes in a list of numerical data and removes any outliers.
@@ -697,7 +638,7 @@ def remove_outliers(data):
         list: A list of data with any outliers removed
 
     Example:
-        >>> remove_outliers([1, 2, 3, 200, 300, 4, 5, 6])
+        >>> remove_outliers([1, 2, 3, 4, 5, 6, 15])
         [1, 2, 3, 4, 5, 6]
     """
     # Calculate the mean and standard deviation of the data
@@ -706,8 +647,8 @@ def remove_outliers(data):
     iqr = q3-q1
 
     # Calculate the upper and lower bounds for identifying outliers
-    upperbound = mean + 1.5*iqr
-    lowerbound = mean - 1.5*iqr
+    upperbound = mean + 3*iqr
+    lowerbound = mean - 3*iqr
 
     # Create a list to store the data without outliers
     out = []
@@ -719,7 +660,6 @@ def remove_outliers(data):
 
     # Return the list of data without outliers
     return out
-
 
 def length_of_service(crews):
     """
@@ -769,9 +709,6 @@ def length_of_service(crews):
                         if length < 0:
                             length = abs(length)
 
-                        # show crews over length of 1000
-                        if length > 1000:
-                            print(f"{leave} - {join} = {length} days")
 
                         crew_lengths.append(length)
 
@@ -783,6 +720,8 @@ def length_of_service(crews):
             crew_avg = np.mean(crew_lengths)
             service_times.append(crew_avg/31)
 
+    print(f"Longest 4 service times of crew: {sorted(service_times)[-4:]}")
+
     # remove outliers for plot
     no_outs = remove_outliers(service_times)
     # plot density and curve
@@ -790,8 +729,72 @@ def length_of_service(crews):
                  stat="density", alpha=0.04, kde=True)
     plt.xlabel("Months of service")
     plt.title("Densisty of average crew length")
+    plt.savefig("plots/Results/density_crew_length.png", bbox_inches = 'tight')
     plt.show()
-    print(min(no_outs), max(no_outs))
+
+def plot_ports(ports):
+    """
+    Plots the number of visits to different ports.
+
+    Args:
+    - ports: A list of dictionaries, each dictionary contains information about a ship's visit to ports.
+
+    Example:
+        ports = [
+            {"_id": {"ship": "ship1", "port": "aberystwith"}},
+            {"_id": {"ship": "ship2", "port": "barry"}},
+            {"_id": {"ship": "ship3", "port": "newport"}},
+            {"_id": {"ship": "ship4", "port": "newport"}},
+            {"_id": {"ship": "ship5", "port": "newport"}}
+        ]
+        plot_ports(ports) plots a boxplot and bar chart of port visits, barry=1 newport=3
+    """
+    # create a dictionary to count the number of visits to each port
+    port_count = {}
+    for data in ports:
+        ship = data["_id"]
+        if "port" in ship:
+            extracted_port = ship["port"]
+            port = clean_port(extracted_port)
+            if port in port_count:
+                port_count[port] += 1
+            else:
+                port_count[port] = 1
+
+    # all ports that isnt Aberystwyth
+    port_count.pop("aberystywth")
+
+    # list of visit counts
+    counts = port_count.values()
+
+    # boxplot number of visits to each port
+    # line at 25 to show where the amount of visits stops being so grouped together
+    # this is the metric decided to plot ports
+    # it was originally decided to be all outlying ports but it still groups a bit
+    plt.axhline(y=25, color='r', linestyle=':')
+    plt.boxplot(counts, labels=[""])
+    plt.ylabel("Number of visits")
+
+    plt.title("Box plot of amount of port visits\nto decide which ones to plot")
+    plt.savefig("plots/data_exploration/ports_box_outliers.png")
+    plt.show()
+
+    # create dict of ports with more than 25 visits
+    plot_port = {}
+    for p in port_count:
+        if port_count[p] > 25:
+            plot_port[p] = port_count[p]
+
+    plot_port.pop("continued")
+
+    # plot the ports
+    plt.bar(range(len(plot_port)), list(plot_port.values()))
+    plt.xticks(range(len(plot_port)), list(plot_port.keys()), rotation=90)
+    plt.xlabel("Ports")
+    plt.ylabel("Number of visits")
+    plt.title("Number of visits for ports")
+    plt.savefig("plots/Results/port_visit_proportions.png", bbox_inches = 'tight')
+    plt.show()
 
 def distribution_of_crews():
     crews = ships_and_ports()
@@ -824,122 +827,116 @@ def remove_example_mariners():
 def initialPlots():
     '''
     Initial plots of the data before cleaning/handling noise in data
-    Used for visualisation and explanation of how the data is handled later
+    Used for data exploration
     '''
-    # ===part 1:individual stories===
-    # ages = db.olk11ShipsData.aggregate([
-    #     {
-    #         "$unwind": "$mariners"
-    #     },
-    #     {
-    #         "$group": {
-    #             "_id": "$mariners.age",
-    #             "count": {
-    #                 "$sum": 1
-    #             }
-    #         }
-    #     }
-    # ])
+    ages = db.olk11ShipsData.aggregate([
+        {
+            "$unwind": "$mariners"
+        },
+        {
+            "$group": {
+                "_id": "$mariners.age",
+                "count": {
+                    "$sum": 1
+                }
+            }
+        }
+    ])
 
-    # ages_freq = {}
+    ages_freq = {}
 
-    # for doc in ages:
-    #     if type(doc["_id"]) == int:
-    #         ages_freq[doc['_id']] = int(doc['count'])
+    for doc in ages:
+        if type(doc["_id"]) == int:
+            ages_freq[doc['_id']] = int(doc['count'])
 
-    # print(ages_freq)
-    # plt.bar(ages_freq.keys(), ages_freq.values())
-    # plt.title("Original Raw data plot of age distribution for all mariners")
-    # plt.ylabel("No. Mariners")
-    # plt.xlabel("Age")
-    # plt.savefig("assignment/plots/data_exploration/Raw_age_dist.png")
-    # plt.show()
+    plt.bar(ages_freq.keys(), ages_freq.values())
+    plt.title("Original Raw data plot of age distribution for all mariners")
+    plt.ylabel("No. Mariners")
+    plt.xlabel("Age")
+    plt.savefig("plots/data_exploration/Raw_age_dist.png")
+    plt.show()
 
-    # ages_no_johnedward = db.olk11ShipsData.aggregate([
-    #     {
-    #         "$unwind": "$mariners"
-    #     },
-    #     {
-    #         "$match": {
-    #             "mariners.name": {
-    #                 "$nin": [
-    #                     "Edward Jones",
-    #                     "John Williams"
-    #                 ]
-    #             }
-    #         }
-    #     },
-    #     {
-    #         "$group": {
-    #             "_id": "$mariners.age",
-    #             "count": {
-    #                 "$sum": 1
-    #             }
-    #         }
-    #     }
-    # ])
+    ages_no_johnedward = db.olk11ShipsData.aggregate([
+        {
+            "$unwind": "$mariners"
+        },
+        {
+            "$match": {
+                "mariners.name": {
+                    "$nin": [
+                        "Edward Jones",
+                        "John Williams"
+                    ]
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": "$mariners.age",
+                "count": {
+                    "$sum": 1
+                }
+            }
+        }
+    ])
 
-    # clean_ages_freq = {}
+    clean_ages_freq = {}
 
-    # for doc in ages_no_johnedward:
-    #     if type(doc["_id"]) == int:
-    #         clean_ages_freq[doc['_id']] = int(doc['count'])
+    for doc in ages_no_johnedward:
+        if type(doc["_id"]) == int:
+            clean_ages_freq[doc['_id']] = int(doc['count'])
 
-    # print(clean_ages_freq)
-    # plt.bar(clean_ages_freq.keys(), clean_ages_freq.values())
-    # plt.title(
-    #     "Data plot of age distribution for all mariners\nnot named John Williams or Edward Jones")
-    # plt.ylabel("No. Mariners")
-    # plt.xlabel("Age")
-    # plt.savefig("assignment/plots/data_exploration/clean_age_dist.png")
-    # plt.show()
+    plt.bar(clean_ages_freq.keys(), clean_ages_freq.values())
+    plt.title(
+        "Data plot of age distribution for all mariners\nnot named John Williams or Edward Jones")
+    plt.ylabel("No. Mariners")
+    plt.xlabel("Age")
+    plt.savefig("plots/data_exploration/clean_age_dist.png")
+    plt.show()
 
-    # raw_ranks = db.olk11ShipsData.aggregate([
-    #     {
-    #         "$unwind": "$mariners"
-    #     },
-    #     {
-    #         "$match": {
-    #             "mariners.name": {
-    #                 "$nin": [
-    #                     "Edward Jones",
-    #                     "John Williams"
-    #                 ]
-    #             }
-    #         }
-    #     },
-    #     {
-    #         "$group": {
-    #             "_id": "$mariners.this_ship_capacity",
-    #             "count": {
-    #                 "$sum": 1
-    #             }
-    #         }
-    #     }
-    # ])
+    raw_ranks = db.olk11ShipsData.aggregate([
+        {
+            "$unwind": "$mariners"
+        },
+        {
+            "$match": {
+                "mariners.name": {
+                    "$nin": [
+                        "Edward Jones",
+                        "John Williams"
+                    ]
+                }
+            }
+        },
+        {
+            "$group": {
+                "_id": "$mariners.this_ship_capacity",
+                "count": {
+                    "$sum": 1
+                }
+            }
+        }
+    ])
 
-    # raw_ranks_freq = {}
-    # clean_ranks_freq = {}
-    # for doc in raw_ranks:
-    #         raw_ranks_freq[doc['_id']] = int(doc['count'])
-    #         cleaned = clean_rank(doc["_id"])
-    #         if cleaned in clean_ranks_freq:
-    #             clean_ranks_freq[cleaned] += doc['count']
-    #         else:
-    #             clean_ranks_freq[cleaned] = doc['count']
+    raw_ranks_freq = {}
+    clean_ranks_freq = {}
+    for doc in raw_ranks:
+            raw_ranks_freq[doc['_id']] = int(doc['count'])
+            cleaned = clean_rank(doc["_id"])
+            if cleaned in clean_ranks_freq:
+                clean_ranks_freq[cleaned] += doc['count']
+            else:
+                clean_ranks_freq[cleaned] = doc['count']
 
-    # print(raw_ranks_freq)
+   
+    raw_ranks = len(list(raw_ranks_freq.values()))
+    clean_ranks = len(list(clean_ranks_freq.values()))
 
-    # print(clean_ranks_freq)
-
-    # raw_ranks = len(list(raw_ranks_freq.values()))
-    # clean_ranks = len(list(clean_ranks_freq.values()))
-
-    # plt.bar([f"{raw_ranks} raw", f"{clean_ranks} cleaned"],[raw_ranks,clean_ranks])
-    # plt.title("Number of unique ranks before and after cleaning")
-    # plt.ylabel("Amount of ranks")
-    # plt.savefig("assignment/plots/data_exploration/clean_vs_raw_ranks.png")
-    # plt.show()
+    plt.bar([f"{raw_ranks} raw", f"{clean_ranks} cleaned"],[raw_ranks,clean_ranks])
+    plt.title("Number of unique ranks before and after cleaning")
+    plt.ylabel("Amount of ranks")
+    plt.savefig("plots/data_exploration/clean_vs_raw_ranks.png")
+    plt.show()
 
     raw_ports = db.olk11ShipsData.aggregate([
         {
@@ -975,10 +972,6 @@ def initialPlots():
         else:
             clean_ports_freq[cleaned] = doc['count']
 
-    print(raw_ports_freq)
-
-    print(clean_ports_freq)
-
     raw_ports = len(list(raw_ports_freq.values()))
     clean_ports = len(list(clean_ports_freq.values()))
 
@@ -986,18 +979,16 @@ def initialPlots():
             [raw_ports, clean_ports])
     plt.title("Number of unique ports before and after cleaning")
     plt.ylabel("Amount of ports")
-    plt.savefig("assignment/plots/data_exploration/clean_vs_raw_ports.png")
+    plt.savefig("plots/data_exploration/clean_vs_raw_ports.png")
     plt.show()
 
-    # ===part 2:who is visiting===
-    # plot ship data
-    # plot length of service of crew -> date between joining and leaving
-    # plot number of ship visits to each port that inst aberystwyth
-
-
 if __name__ == '__main__':
-    # main()
-    #distribution_of_ages()
-    #initialPlots()
-    # uncomment to run doctest
-    doctest.testmod(verbose=True)
+    
+    #create data exploration plots
+    initialPlots()
+
+    # create results plots
+    main()
+
+    # uncomment to run automatic doctests 
+    #doctest.testmod(verbose=True)
